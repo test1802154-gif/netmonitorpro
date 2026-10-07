@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="fas fa-th-list"></i>
+                Network Nodes
+            </h2>
+            <p class="page-subtitle">Real-time monitoring of all network devices</p>
+        </div>
+        <div class="page-info">
+            <span class="result-count" id="resultCount">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Nodes Table Card -->
+    <div class="table-card">
+        <div class="table-wrapper">
+            <table id="nodesTable" class="nodes-table">
+                <thead>
+                    <tr>
+                        <th class="col-status" width="50">
+                            <i class="fas fa-circle-info"></i>
+                        </th>
+                        <th class="sortable" data-sort="node_name">
+                            <div class="th-content">
+                                <i class="fas fa-server"></i>
+                                <span>Node Name</span>
+                                <span class="sort-arrow"></span>
+                            </div>
+                        </th>
+                        <th class="sortable" data-sort="ip_address">
+                            <div class="th-content">
+                                <i class="fas fa-network-wired"></i>
+                                <span>IP Address</span>
+                                <span class="sort-arrow"></span>
+                            </div>
+                        </th>
+                        <th class="sortable" data-sort="response_time">
+                            <div class="th-content">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>Response</span>
+                                <span class="sort-arrow"></span>
+                            </div>
+                        </th>
+                        <th class="sortable" data-sort="packet_loss">
+                            <div class="th-content">
+                                <i class="fas fa-percent"></i>
+                                <span>Packet Loss</span>
+                                <span class="sort-arrow"></span>
+                            </div>
+                        </th>
+                        <th class="sortable" data-sort="status">
+                            <div class="th-content">
+                                <i class="fas fa-signal"></i>
+                                <span>Status</span>
+                                <span class="sort-arrow"></span>
+                            </div>
+                        </th>
+                        <th class="sortable active-sort" data-sort="since_last_change">
+                            <div class="th-content">
+                                <i class="fas fa-clock"></i>
+                                <span>Last Change</span>
+                                <span class="sort-arrow">▲</span>
+                            </div>
+                        </th>
+                        <th class="col-actions" width="140">
+                            <i class="fas fa-cog"></i> Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="nodesBody">
+                    <tr>
+                        <td colspan="8" class="loading-cell">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading nodes...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-item" onclick="editFromContext()">
+        <i class="fas fa-edit"></i>
+        <span>Edit Node</span>
+    </div>
+    <div class="context-item" onclick="pingFromContext()">
+        <i class="fas fa-satellite-dish"></i>
+        <span>Ping Now</span>
+    </div>
+    <div class="context-separator"></div>
+    <div class="context-item context-danger" onclick="deleteFromContext()">
+        <i class="fas fa-trash"></i>
+        <span>Delete Node</span>
+    </div>
+</div>
+{% endblock %}

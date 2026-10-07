@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-card">
+        <div class="form-header">
+            <div class="form-header-icon">
+                <i class="fas fa-plus-circle"></i>
+            </div>
+            <div>
+                <h2>Add New Node</h2>
+                <p>Add a new device to monitoring system</p>
+            </div>
+        </div>
+
+        <form method="POST" action="/add" class="modern-form">
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="node_name">
+                        <i class="fas fa-server"></i> Node Name
+                    </label>
+                    <input type="text" id="node_name" name="node_name" required
+                           placeholder="e.g., SHED_11-Distribution-SW" autofocus>
+                    <small>A descriptive name for the device</small>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="ip_address">
+                        <i class="fas fa-network-wired"></i> IP Address
+                    </label>
+                    <input type="text" id="ip_address" name="ip_address" required
+                           placeholder="e.g., 192.168.158.250"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                    <small>Valid IPv4 address (e.g., 192.168.1.1)</small>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="/" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Add Node
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

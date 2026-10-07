@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="fas fa-history"></i>
+                Downtime Logs
+            </h2>
+            <p class="page-subtitle">History of all node status changes and downtime records</p>
+        </div>
+        <div class="page-info">
+            <span class="result-count" id="resultCount">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Log Stats Cards -->
+    <div class="log-stats-grid">
+        <div class="log-stat-card">
+            <div class="log-stat-icon" style="background: var(--gradient-primary);">
+                <i class="fas fa-list"></i>
+            </div>
+            <div class="log-stat-info">
+                <span class="log-stat-value" id="statTotalLogs">0</span>
+                <span class="log-stat-label">Total Events</span>
+            </div>
+        </div>
+        <div class="log-stat-card">
+            <div class="log-stat-icon" style="background: var(--gradient-danger);">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="log-stat-info">
+                <span class="log-stat-value" id="statDownEvents">0</span>
+                <span class="log-stat-label">Down Events</span>
+            </div>
+        </div>
+        <div class="log-stat-card">
+            <div class="log-stat-icon" style="background: var(--gradient-success);">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="log-stat-info">
+                <span class="log-stat-value" id="statUpEvents">0</span>
+                <span class="log-stat-label">Recovery Events</span>
+            </div>
+        </div>
+        <div class="log-stat-card">
+            <div class="log-stat-icon" style="background: var(--gradient-warning);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="log-stat-info">
+                <span class="log-stat-value" id="statUnresolved">0</span>
+                <span class="log-stat-label">Unresolved</span>
+            </div>
+        </div>
+        <div class="log-stat-card">
+            <div class="log-stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="log-stat-info">
+                <span class="log-stat-value" id="statAvgDowntime">0s</span>
+                <span class="log-stat-label">Avg Downtime</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="log-toolbar">
+        <div class="log-toolbar-left">
+            <select id="filterStatus" class="log-select" onchange="loadLogs()">
+                <option value="">All Status</option>
+                <option value="Node Down">Node Down</option>
+                <option value="Node Up">Node Up</option>
+                <option value="Warning">Warning</option>
+            </select>
+            <select id="filterResolved" class="log-select" onchange="loadLogs()">
+                <option value="">All (Resolved & Unresolved)</option>
+                <option value="false">Unresolved Only</option>
+                <option value="true">Resolved Only</option>
+            </select>
+        </div>
+        <div class="log-toolbar-right">
+            <button class="btn btn-secondary" onclick="exportLogsCSV()">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+            <button class="btn btn-danger" onclick="clearLogs()">
+                <i class="fas fa-trash"></i> Clear All Logs
+            </button>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="table-card">
+        <div class="table-wrapper">
+            <table id="logsTable" class="nodes-table">
+                <thead>
+                    <tr>
+                        <th width="50">#</th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-server"></i>
+                                <span>Node Name</span>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-network-wired"></i>
+                                <span>IP Address</span>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span>Status Change</span>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-arrow-left"></i>
+                                <span>Previous Status</span>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-calendar"></i>
+                                <span>Time</span>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="th-content">
+                                <i class="fas fa-hourglass-half"></i>
+                                <span>Downtime Duration</span>
+                            </div>
+                        </th>
+                        <th width="100">
+                            <div class="th-content">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Resolved</span>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="logsBody">
+                    <tr>
+                        <td colspan="8" class="loading-cell">
+                            <div class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading logs...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="log-pagination">
+        <button class="btn btn-secondary" id="prevBtn" onclick="prevPage()" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+        </button>
+        <span class="pagination-info" id="paginationInfo">Page 1 of 1</span>
+        <button class="btn btn-secondary" id="nextBtn" onclick="nextPage()" disabled>
+            Next <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+const perPage = 50;
+
+function loadLogs() {
+    const status = document.getElementById('filterStatus').value;
+    const resolved = document.getElementById('filterResolved').value;
+
+    let url = `/api/logs?page=${currentPage}&per_page=${perPage}`;
+    if (status) url += `&status=${status}`;
+    if (resolved) url += `&resolved=${resolved}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            renderLogs(data.logs);
+            document.getElementById('resultCount').textContent = `${data.total} log entries`;
+            document.getElementById('paginationInfo').textContent = `Page ${data.page} of ${data.total_pages}`;
+            document.getElementById('prevBtn').disabled = !data.has_prev;
+            document.getElementById('nextBtn').disabled = !data.has_next;
+        })
+        .catch(error => {
+            console.error('Error loading logs:', error);
+            document.getElementById('logsBody').innerHTML = `
+                <tr>
+                    <td colspan="8" class="loading-cell">
+                        <div class="loading-spinner">
+                            <i class="fas fa-exclamation-circle" style="color: var(--danger);"></i>
+                            <p>Error loading logs</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function renderLogs(logs) {
+    const tbody = document.getElementById('logsBody');
+
+    if (logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="loading-cell">
+                    <div class="loading-spinner">
+                        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                        <p>No downtime logs found</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    logs.forEach((log, index) => {
+        let statusBadge = 'status-up';
+        let statusIcon = 'fa-arrow-up';
+        if (log.status_change === 'Node Down') {
+            statusBadge = 'status-down';
+            statusIcon = 'fa-arrow-down';
+        } else if (log.status_change === 'Warning') {
+            statusBadge = 'status-warning';
+            statusIcon = 'fa-exclamation-triangle';
+        }
+
+        const rowStyle = log.status_change === 'Node Down' && !log.is_resolved
+            ? 'style="background: rgba(239, 68, 68, 0.05);"' : '';
+
+        html += `
+            <tr ${rowStyle}>
+                <td style="color: var(--text-muted); font-size: 12px;">${((currentPage - 1) * perPage) + index + 1}</td>
+                <td>
+                    <div class="node-name-cell">
+                        <span>${escapeHtml(log.node_name)}</span>
+                    </div>
+                </td>
+                <td><span class="ip-address">${escapeHtml(log.ip_address)}</span></td>
+                <td><span class="status-badge ${statusBadge}"><i class="fas ${statusIcon}"></i> ${log.status_change}</span></td>
+                <td style="color: var(--text-tertiary);">${log.previous_status || 'N/A'}</td>
+                <td><span class="time-ago"><i class="far fa-clock"></i> ${log.timestamp_display}</span></td>
+                <td>
+                    ${log.downtime_duration_display
+                        ? `<span class="metric-value ${log.downtime_duration > 300 ? 'metric-bad' : log.downtime_duration > 60 ? 'metric-warning' : 'metric-good'}">${log.downtime_duration_display}</span>`
+                        : '<span style="color: var(--text-muted);">—</span>'
+                    }
+                </td>
+                <td>
+                    ${log.is_resolved
+                        ? '<span style="color: var(--success);"><i class="fas fa-check-circle"></i> Yes</span>'
+                        : '<span style="color: var(--danger);"><i class="fas fa-times-circle"></i> No</span>'
+                    }
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+function loadLogStats() {
+    fetch('/api/logs/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('statTotalLogs').textContent = data.total_logs;
+            document.getElementById('statDownEvents').textContent = data.down_events;
+            document.getElementById('statUpEvents').textContent = data.up_events;
+            document.getElementById('statUnresolved').textContent = data.unresolved;
+
+            if (data.avg_downtime > 0) {
+                document.getElementById('statAvgDowntime').textContent = formatDuration(data.avg_downtime);
+            } else {
+                document.getElementById('statAvgDowntime').textContent = '0s';
+            }
+        });
+}
+
+function formatDuration(seconds) {
+    seconds = Math.round(seconds);
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+}
+
+function nextPage() {
+    currentPage++;
+    loadLogs();
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        loadLogs();
+    }
+}
+
+function clearLogs() {
+    if (!confirm('Are you sure you want to delete ALL downtime logs? This cannot be undone.')) return;
+
+    fetch('/api/logs/clear', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`🗑️ Deleted ${data.deleted} log entries`, 'success');
+                loadLogs();
+                loadLogStats();
+            }
+        });
+}
+
+function exportLogsCSV() {
+    let url = '/api/logs?per_page=10000';
+    const status = document.getElementById('filterStatus').value;
+    const resolved = document.getElementById('filterResolved').value;
+    if (status) url += `&status=${status}`;
+    if (resolved) url += `&resolved=${resolved}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.logs.length === 0) {
+                alert('No logs to export.');
+                return;
+            }
+
+            let csv = 'Node Name,IP Address,Status Change,Previous Status,Timestamp,Downtime Duration,Resolved\n';
+            data.logs.forEach(log => {
+                csv += `"${log.node_name}","${log.ip_address}","${log.status_change}","${log.previous_status || ''}","${log.timestamp_display}","${log.downtime_duration_display || ''}","${log.is_resolved ? 'Yes' : 'No'}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `downtime_logs_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+
+            showNotification(`📁 Exported ${data.logs.length} log entries`, 'success');
+        });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function() {
+    loadLogs();
+    loadLogStats();
+
+    // Auto-refresh every 10s
+    setInterval(() => {
+        loadLogs();
+        loadLogStats();
+    }, 10000);
+});
+</script>
+{% endblock %}

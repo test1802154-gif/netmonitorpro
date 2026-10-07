@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Node Header -->
+    <div id="nodeDetailHeader" class="node-detail-header">
+        <div class="node-detail-info">
+            <div class="node-detail-name">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div id="nodeDetailStats" class="detail-stats-grid">
+        <div class="detail-stat-card">
+            <div class="detail-stat-icon"><i class="fas fa-spinner fa-spin"></i></div>
+            <div class="detail-stat-info"><span class="detail-stat-value">...</span><span class="detail-stat-label">Loading</span></div>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="timeline-section">
+        <div class="timeline-header">
+            <h3 class="page-title">
+                <i class="fas fa-history"></i>
+                Status History
+            </h3>
+            <span class="result-count" id="timelineCount">Loading...</span>
+        </div>
+
+        <div class="timeline-container" id="nodeTimeline">
+            <div class="timeline-empty">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading timeline...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ========== Get Node ID from URL ==========
+const pathParts = window.location.pathname.split('/');
+const nodeId = parseInt(pathParts[pathParts.length - 1]);
+console.log('[Node Detail] Node ID:', nodeId);
+
+// ========== Format Duration ==========
+function formatDur(seconds) {
+    if (!seconds || seconds === 0) return '0s';
+    seconds = Math.round(seconds);
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (days > 0) return days + 'd ' + hours + 'h ' + minutes + 'm';
+    if (hours > 0) return hours + 'h ' + minutes + 'm ' + secs + 's';
+    if (minutes > 0) return minutes + 'm ' + secs + 's';
+    return secs + 's';
+}
+
+// ========== Escape HTML ==========
+function escHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ========== Load Everything ==========
+function loadNodeDetail(nid) {
+    if (!nid) return;
+
+    // 1. Load Node Info
+    fetch('/api/nodes/' + nid)
+        .then(function(response) { return response.json(); })
+        .then(function(node) {
+            console.log('[Node Detail] Node data:', node);
+            renderNodeHeader(node);
+        })
+        .catch(function(err) {
+            console.error('[Node Detail] Error loading node:', err);
+            document.getElementById('nodeDetailHeader').innerHTML =
+                '<div class="node-detail-info"><div class="node-detail-name" style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Error loading node</div></div>';
+        });
+
+    // 2. Load Node Logs
+    fetch('/api/logs?node_id=' + nid + '&per_page=100&page=1')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            console.log('[Node Detail] Logs:', data.logs.length, 'of', data.total);
+            renderTimeline(data.logs, data.total);
+        })
+        .catch(function(err) {
+            console.error('[Node Detail] Error loading logs:', err);
+            document.getElementById('nodeTimeline').innerHTML =
+                '<div class="timeline-empty"><i class="fas fa-exclamation-circle" style="color:var(--danger);"></i><p>Error loading logs</p></div>';
+        });
+
+    // 3. Load Node Stats
+    fetch('/api/logs/node/' + nid + '/stats')
+        .then(function(response) { return response.json(); })
+        .then(function(stats) {
+            console.log('[Node Detail] Stats:', stats);
+            renderStats(stats);
+        })
+        .catch(function(err) {
+            console.error('[Node Detail] Error loading stats:', err);
+        });
+}
+
+// ========== Render Header ==========
+function renderNodeHeader(node) {
+    var header = document.getElementById('nodeDetailHeader');
+    if (!header) return;
+
+    var statusClass = 'status-up';
+    var statusEmoji = '🟢';
+    var dotClass = 'dot-up';
+    if (node.status === 'Node Down') { statusClass = 'status-down'; statusEmoji = '🔴'; dotClass = 'dot-down'; }
+    else if (node.status === 'Warning') { statusClass = 'status-warning'; statusEmoji = '🟡'; dotClass = 'dot-warning'; }
+    else if (node.status === 'Unknown') { statusClass = 'status-unknown'; statusEmoji = '⚪'; dotClass = 'dot-unknown'; }
+
+    header.innerHTML = '' +
+        '<div class="node-detail-info">' +
+            '<div class="node-detail-name">' +
+                '<span class="status-dot ' + dotClass + '"></span>' +
+                '<h2>' + escHtml(node.node_name) + '</h2>' +
+                '<span class="status-badge ' + statusClass + '">' + statusEmoji + ' ' + node.status + '</span>' +
+            '</div>' +
+            '<div class="node-detail-meta">' +
+                '<span><i class="fas fa-network-wired"></i> ' + escHtml(node.ip_address) + '</span>' +
+                '<span><i class="fas fa-tachometer-alt"></i> ' + node.response_time_display + '</span>' +
+                '<span><i class="fas fa-percent"></i> ' + node.packet_loss_display + '</span>' +
+                '<span><i class="far fa-clock"></i> Since: ' + node.since_last_change + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="node-detail-actions">' +
+            '<button class="btn btn-secondary" onclick="pingNodeFromDetail(' + node.id + ')">' +
+                '<i class="fas fa-satellite-dish"></i> Ping Now' +
+            '</button>' +
+            '<a href="/edit/' + node.id + '" class="btn btn-secondary">' +
+                '<i class="fas fa-edit"></i> Edit Node' +
+            '</a>' +
+            '<a href="/" class="btn btn-ghost">' +
+                '<i class="fas fa-arrow-left"></i> Back to Dashboard' +
+            '</a>' +
+        '</div>';
+}
+
+// ========== Render Stats ==========
+function renderStats(stats) {
+    var container = document.getElementById('nodeDetailStats');
+    if (!container) return;
+
+    container.innerHTML = '' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: var(--gradient-danger);"><i class="fas fa-arrow-down"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + stats.total_down + '</span><span class="detail-stat-label">Total Down</span></div>' +
+        '</div>' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: var(--gradient-success);"><i class="fas fa-arrow-up"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + stats.total_up + '</span><span class="detail-stat-label">Total Recovery</span></div>' +
+        '</div>' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fas fa-hourglass-half"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + formatDur(stats.total_downtime) + '</span><span class="detail-stat-label">Total Downtime</span></div>' +
+        '</div>' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fas fa-chart-line"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + formatDur(stats.avg_downtime) + '</span><span class="detail-stat-label">Avg Downtime</span></div>' +
+        '</div>' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);"><i class="fas fa-exclamation-circle"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + formatDur(stats.max_downtime) + '</span><span class="detail-stat-label">Max Downtime</span></div>' +
+        '</div>' +
+        '<div class="detail-stat-card">' +
+            '<div class="detail-stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);"><i class="fas fa-percentage"></i></div>' +
+            '<div class="detail-stat-info"><span class="detail-stat-value">' + stats.availability + '%</span><span class="detail-stat-label">Availability</span></div>' +
+        '</div>';
+}
+
+// ========== Render Timeline ==========
+function renderTimeline(logs, total) {
+    var container = document.getElementById('nodeTimeline');
+    var countEl = document.getElementById('timelineCount');
+    if (countEl) countEl.textContent = total + ' events';
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<div class="timeline-empty">' +
+            '<i class="fas fa-check-circle"></i>' +
+            '<p>No downtime events recorded for this node yet</p>' +
+        '</div>';
+        return;
+    }
+
+    var html = '';
+    var i = 0;
+
+    while (i < logs.length) {
+        var log = logs[i];
+
+        if (log.status_change === 'Node Down' || log.status_change === 'Warning') {
+            // Try to find matching UP event
+            var matchedUp = null;
+            if (i + 1 < logs.length && logs[i + 1].status_change === 'Node Up') {
+                matchedUp = logs[i + 1];
+                i += 2;
+            } else {
+                i++;
+            }
+
+            var isResolved = matchedUp ? true : false;
+            var duration = matchedUp ? matchedUp.downtime_duration_display : 'Still Down';
+            var downTime = log.timestamp_display;
+            var upTime = matchedUp ? matchedUp.timestamp_display : '—';
+            var severityClass = log.status_change === 'Node Down' ? 'down' : 'warning';
+            var activeClass = !isResolved ? ' timeline-active' : '';
+            var durationClass = !isResolved ? ' duration-active' : '';
+
+            html += '<div class="timeline-item timeline-' + severityClass + activeClass + '">' +
+                '<div class="timeline-dot"></div>' +
+                '<div class="timeline-content">' +
+                    '<div class="timeline-header">' +
+                        '<span class="timeline-badge badge-down"><i class="fas fa-arrow-down"></i> DOWN</span>' +
+                        (!isResolved ? '<span class="timeline-badge badge-ongoing"><i class="fas fa-spinner fa-spin"></i> ONGOING</span>' : '') +
+                        (isResolved ? '<span class="timeline-badge badge-up"><i class="fas fa-arrow-up"></i> RECOVERED</span>' : '') +
+                    '</div>' +
+                    '<div class="timeline-body">' +
+                        '<div class="timeline-time-grid">' +
+                            '<div class="timeline-time-row">' +
+                                '<span class="time-label"><i class="fas fa-arrow-down"></i> Went Down:</span>' +
+                                '<span class="time-value">' + downTime + '</span>' +
+                            '</div>' +
+                            '<div class="timeline-time-row">' +
+                                '<span class="time-label"><i class="fas fa-arrow-up"></i> Came Up:</span>' +
+                                '<span class="time-value">' + upTime + '</span>' +
+                            '</div>' +
+                            '<div class="timeline-time-row">' +
+                                '<span class="time-label"><i class="fas fa-hourglass-half"></i> Duration:</span>' +
+                                '<span class="time-value duration-highlight' + durationClass + '">' + duration + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        } else {
+            // Standalone UP event
+            html += '<div class="timeline-item timeline-up">' +
+                '<div class="timeline-dot"></div>' +
+                '<div class="timeline-content">' +
+                    '<div class="timeline-header">' +
+                        '<span class="timeline-badge badge-up"><i class="fas fa-arrow-up"></i> UP</span>' +
+                    '</div>' +
+                    '<div class="timeline-body">' +
+                        '<div class="timeline-time-grid">' +
+                            '<div class="timeline-time-row">' +
+                                '<span class="time-label"><i class="far fa-clock"></i> Time:</span>' +
+                                '<span class="time-value">' + log.timestamp_display + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+            i++;
+        }
+    }
+
+    container.innerHTML = html;
+}
+
+// ========== Ping from Detail ==========
+function pingNodeFromDetail(nid) {
+    fetch('/api/nodes/' + nid + '/ping', { method: 'POST' })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            console.log('[Node Detail] Ping result:', data);
+            loadNodeDetail(nid);
+        })
+        .catch(function(err) { console.error('[Node Detail] Ping error:', err); });
+}
+
+// ========== INIT ==========
+if (nodeId && !isNaN(nodeId)) {
+    loadNodeDetail(nodeId);
+    setInterval(function() { loadNodeDetail(nodeId); }, 10000);
+} else {
+    document.getElementById('nodeDetailHeader').innerHTML =
+        '<div class="node-detail-info"><div class="node-detail-name" style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Invalid Node ID</div></div>';
+}
+</script>
+{% endblock %}

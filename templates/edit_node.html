@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-card">
+        <div class="form-header">
+            <div class="form-header-icon edit">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div>
+                <h2>Edit Node</h2>
+                <p>Update node information</p>
+            </div>
+        </div>
+
+        <form method="POST" action="/edit/{{ node.id }}" class="modern-form">
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="node_name">
+                        <i class="fas fa-server"></i> Node Name
+                    </label>
+                    <input type="text" id="node_name" name="node_name" required
+                           value="{{ node.node_name }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="ip_address">
+                        <i class="fas fa-network-wired"></i> IP Address
+                    </label>
+                    <input type="text" id="ip_address" name="ip_address" required
+                           value="{{ node.ip_address }}"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label class="toggle-label">
+                        <input type="checkbox" name="enabled" {{ 'checked' if node.enabled else '' }}>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">Monitoring Enabled</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-icon status-{{ 'up' if node.status == 'Node Up' else 'down' if node.status == 'Node Down' else 'unknown' }}">
+                        <i class="fas fa-signal"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Current Status</span>
+                        <span class="info-value">{{ node.status }}</span>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Response Time</span>
+                        <span class="info-value">{{ node.response_time }} ms</span>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <div class="info-content">
+                        <span class="info-label">Packet Loss</span>
+                        <span class="info-value">{{ node.packet_loss }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="/" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete({{ node.id }}, '{{ node.node_name }}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form id="deleteForm" method="POST" action="/delete/{{ node.id }}" style="display:none;"></form>
+
+<script>
+function confirmDelete(id, name) {
+    if (confirm('Are you sure you want to delete node "' + name + '"?')) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+</script>
+{% endblock %}

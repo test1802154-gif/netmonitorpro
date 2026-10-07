@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-card">
+        <div class="form-header">
+            <div class="form-header-icon csv">
+                <i class="fas fa-file-csv"></i>
+            </div>
+            <div>
+                <h2>Import Nodes from CSV</h2>
+                <p>Bulk import multiple nodes at once</p>
+            </div>
+        </div>
+
+        <div class="csv-info-box">
+            <h3><i class="fas fa-info-circle"></i> CSV Format</h3>
+            <table class="csv-format-table">
+                <thead>
+                    <tr>
+                        <th>node_name</th>
+                        <th>ip_address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SHED_11-Distribution-SW</td>
+                        <td>192.168.158.250</td>
+                    </tr>
+                    <tr>
+                        <td>Shed-11-Access SW-2</td>
+                        <td>192.168.158.249</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="csv-note">
+                <i class="fas fa-lightbulb"></i>
+                Supported columns: <code>node_name</code>, <code>Node</code>, <code>hostname</code>, 
+                <code>ip_address</code>, <code>IP Address</code>, <code>ip</code>. 
+                Duplicate IPs will be skipped automatically.
+            </p>
+        </div>
+
+        <form method="POST" action="/upload" enctype="multipart/form-data" class="modern-form">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required
+                       onchange="updateFileName(this)">
+                <div class="upload-content">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Drop CSV file here or click to browse</h3>
+                    <p id="fileName">No file selected</p>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="/" class="btn btn-ghost">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <button type="button" class="btn btn-secondary" onclick="downloadSample()">
+                    <i class="fas fa-download"></i> Sample CSV
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Upload & Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateFileName(input) {
+    const fileName = input.files[0] ? input.files[0].name : 'No file selected';
+    document.getElementById('fileName').textContent = fileName;
+    if (input.files[0]) {
+        document.getElementById('uploadArea').classList.add('has-file');
+    }
+}
+
+function downloadSample() {
+    const csv = 'node_name,ip_address\nSHED_11-Distribution-SW,192.168.158.250\nShed-11-Access SW-2,192.168.158.249\nGoogle DNS,8.8.8.8\nCloudflare DNS,1.1.1.1\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_nodes.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}
